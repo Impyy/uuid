@@ -53,7 +53,9 @@ func getTime() (Time, uint16, error) {
 
 	// If we don't have a clock sequence already, set one.
 	if clock_seq == 0 {
-		setClockSequence(-1)
+		if err := setClockSequence(-1); err != nil {
+			return 0, 0, err
+		}
 	}
 	now := uint64(t.UnixNano()/100) + g1582ns100
 
@@ -74,31 +76,35 @@ func getTime() (Time, uint16, error) {
 // clock sequence is generated the first time a clock sequence is requested by
 // ClockSequence, GetTime, or NewUUID.  (section 4.2.1.1) sequence is generated
 // for
-func ClockSequence() int {
+func ClockSequence() (int, error) {
 	defer timeMu.Unlock()
 	timeMu.Lock()
 	return clockSequence()
 }
 
-func clockSequence() int {
+func clockSequence() (int, error) {
 	if clock_seq == 0 {
-		setClockSequence(-1)
+		if err := setClockSequence(-1); err != nil {
+			return 0, err
+		}
 	}
-	return int(clock_seq & 0x3fff)
+	return int(clock_seq & 0x3fff), nil
 }
 
 // SetClockSeq sets the clock sequence to the lower 14 bits of seq.  Setting to
 // -1 causes a new sequence to be generated.
-func SetClockSequence(seq int) {
+func SetClockSequence(seq int) error {
 	defer timeMu.Unlock()
 	timeMu.Lock()
-	setClockSequence(seq)
+	return setClockSequence(seq)
 }
 
-func setClockSequence(seq int) {
+func setClockSequence(seq int) error {
 	if seq == -1 {
 		var b [2]byte
-		randomBits(b[:]) // clock sequence
+		if err := randomBits(b[:]); err != nil { // clock sequence
+			return err
+		}
 		seq = int(b[0])<<8 | int(b[1])
 	}
 	old_seq := clock_seq
@@ -106,6 +112,7 @@ func setClockSequence(seq int) {
 	if old_seq != clock_seq {
 		lasttime = 0
 	}
+	return nil
 }
 
 // Time returns the time in 100s of nanoseconds since 15 Oct 1582 encoded in

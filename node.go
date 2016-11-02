@@ -31,18 +31,18 @@ func NodeInterface() string {
 // is returned.
 //
 // SetNodeInterface never fails when name is "".
-func SetNodeInterface(name string) bool {
+func SetNodeInterface(name string) (bool, error) {
 	defer nodeMu.Unlock()
 	nodeMu.Lock()
 	return setNodeInterface(name)
 }
 
-func setNodeInterface(name string) bool {
+func setNodeInterface(name string) (bool, error) {
 	if interfaces == nil {
 		var err error
 		interfaces, err = net.Interfaces()
 		if err != nil && name != "" {
-			return false
+			return false, nil
 		}
 	}
 
@@ -50,7 +50,7 @@ func setNodeInterface(name string) bool {
 		if len(ifs.HardwareAddr) >= 6 && (name == "" || name == ifs.Name) {
 			if setNodeID(ifs.HardwareAddr) {
 				ifname = ifs.Name
-				return true
+				return true, nil
 			}
 		}
 	}
@@ -62,23 +62,24 @@ func setNodeInterface(name string) bool {
 		if nodeID == nil {
 			nodeID = make([]byte, 6)
 		}
-		randomBits(nodeID)
-		return true
+		return true, randomBits(nodeID)
 	}
-	return false
+	return false, nil
 }
 
 // NodeID returns a slice of a copy of the current Node ID, setting the Node ID
 // if not already set.
-func NodeID() []byte {
+func NodeID() ([]byte, error) {
 	defer nodeMu.Unlock()
 	nodeMu.Lock()
 	if nodeID == nil {
-		setNodeInterface("")
+		if _, err := setNodeInterface(""); err != nil {
+			return nil, err
+		}
 	}
 	nid := make([]byte, 6)
 	copy(nid, nodeID)
-	return nid
+	return nid, nil
 }
 
 // SetNodeID sets the Node ID to be used for Version 1 UUIDs.  The first 6 bytes

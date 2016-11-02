@@ -279,17 +279,17 @@ func TestNode(t *testing.T) {
 	if ni := NodeInterface(); ni != "" {
 		t.Errorf("NodeInterface got %q, want %q", ni, "")
 	}
-	if SetNodeInterface("xyzzy") {
+	if res, _ := SetNodeInterface("xyzzy"); res {
 		t.Error("SetNodeInterface succeeded on a bad interface name")
 	}
-	if !SetNodeInterface("") {
+	if res, _ := SetNodeInterface(""); !res {
 		t.Error("SetNodeInterface failed")
 	}
 	if ni := NodeInterface(); ni == "" {
 		t.Error("NodeInterface returned an empty string")
 	}
 
-	ni := NodeID()
+	ni := getNodeID(t)
 	if len(ni) != 6 {
 		t.Errorf("ni got %d bytes, want 6", len(ni))
 	}
@@ -305,7 +305,7 @@ func TestNode(t *testing.T) {
 
 	id := []byte{1, 2, 3, 4, 5, 6, 7, 8}
 	SetNodeID(id)
-	ni = NodeID()
+	ni = getNodeID(t)
 	if !bytes.Equal(ni, id[:6]) {
 		t.Errorf("got nodeid %v, want %v", ni, id[:6])
 	}
@@ -354,12 +354,14 @@ func TestSHA1(t *testing.T) {
 
 func TestNodeID(t *testing.T) {
 	nid := []byte{1, 2, 3, 4, 5, 6}
-	SetNodeInterface("")
+	if _, err := SetNodeInterface(""); err != nil {
+		t.Fatalf("SetNodeInterface returned an error: %s", err.Error())
+	}
 	s := NodeInterface()
 	if s == "" || s == "user" {
 		t.Errorf("NodeInterface %q after SetInteface", s)
 	}
-	node1 := NodeID()
+	node1 := getNodeID(t)
 	if node1 == nil {
 		t.Error("NodeID nil after SetNodeInterface", s)
 	}
@@ -368,7 +370,7 @@ func TestNodeID(t *testing.T) {
 	if s != "user" {
 		t.Errorf("Expected NodeInterface %q got %q", "user", s)
 	}
-	node2 := NodeID()
+	node2 := getNodeID(t)
 	if node2 == nil {
 		t.Error("NodeID nil after SetNodeID", s)
 	}
@@ -440,6 +442,14 @@ func newUUID(t *testing.T) string {
 		t.Fatalf("New returned an error: %s", err.Error())
 	}
 	return uuid
+}
+
+func getNodeID(t *testing.T) []byte {
+	id, err := NodeID()
+	if err != nil {
+		t.Fatalf("NodeID returned an error: %s", err.Error())
+	}
+	return id
 }
 
 func TestUUID_Array(t *testing.T) {
